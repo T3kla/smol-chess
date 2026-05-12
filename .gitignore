@@ -1,0 +1,9 @@
+
+
+.jj/
+.vscode/
+.zig-cache/
+zig-out/
+
+!*.zig
+!*/*.zig
