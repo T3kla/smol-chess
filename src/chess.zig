@@ -50,6 +50,8 @@ pub const Piece = packed struct {
 pub const Board = struct {
     data: [8][8]Piece = undefined,
 
+    const Error = error{SelectionFail};
+
     pub fn init() Board {
         return Board{ .data = .{
             .{
@@ -85,31 +87,44 @@ pub const Board = struct {
         self.data = init().data;
     }
 
+    pub fn select(str: [2]u8) Error!void {
+        switch (str[0]) {}
+    }
+
     pub fn printBoard(self: Board, stdout: *std.Io.Writer) !void {
-        const board_top = "╭───┬───┬───┬───┬───┬───┬───┬───╮\n";
-        const board_mid = "├───┼───┼───┼───┼───┼───┼───┼───┤\n";
-        const board_bot = "╰───┴───┴───┴───┴───┴───┴───┴───╯\n";
+        const board_top = "  ╭───┬───┬───┬───┬───┬───┬───┬───╮\n";
+        const board_mid = "  ├───┼───┼───┼───┼───┼───┼───┼───┤\n";
+        const board_bot = "  ╰───┴───┴───┴───┴───┴───┴───┴───╯\n";
+        const board_ltr = "    a   b   c   d   e   f   g   h  \n";
 
         for (0..16) |i| {
             switch (i) {
                 0 => try stdout.print("{s}", .{board_top}),
-                16 => try stdout.print("{s}", .{board_bot}),
-                else => {
-                    if (i % 2 == 0)
-                        try stdout.print("{s}", .{board_mid})
-                    else
-                        try printLine(self, stdout, @intCast((i - 1) / 2));
-                },
+                1, 3, 5, 7, 9, 11, 13, 15 => try printLine(self, stdout, @intCast(i)),
+                2, 4, 6, 8, 10, 12, 14 => try stdout.print("{s}", .{board_mid}),
+                else => unreachable,
             }
         }
 
         try stdout.print("{s}", .{board_bot});
+        try stdout.print("{s}", .{board_ltr});
     }
 
-    fn printLine(self: Board, stdout: *std.Io.Writer, l: u8) !void {
-        for (0..8) |i|
-            try stdout.print("│ {s} ", .{self.data[l][i].toString()});
-        try stdout.print("│\n", .{});
+    fn printLine(self: Board, stdout: *std.Io.Writer, line: u8) !void {
+        const y: u8 = @intCast((line - 1) / 2);
+        try stdout.print("{d} │", .{8 - y});
+        for (0..8) |x| {
+            try printPiece(self, stdout, self.data[y][x]);
+            try stdout.print("│", .{});
+        }
+        try stdout.print("\n", .{});
+    }
+
+    fn printPiece(_: Board, stdout: *std.Io.Writer, piece: Piece) !void {
+        // \x1b[31m foreground color to red 37=white 30=black
+        // \x1b[0m  reset terminal's defaults
+        // example: try stdout.print(" \x1b[31m{s}\x1b[0m ", .{piece.toString()});
+        try stdout.print(" {s} ", .{piece.toString()});
     }
 };
 
