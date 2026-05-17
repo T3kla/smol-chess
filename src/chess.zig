@@ -2,16 +2,16 @@ const std = @import("std");
 const main = @import("main.zig");
 
 pub const Piece = packed struct {
-    pub const Selected = enum(u1) { y, n };
+    pub const Status = enum(u2) { none, selected, movement };
     pub const Color = enum(u1) { white, black };
-    pub const Kind = enum(u6) { none, pawn, rook, knight, bishop, queen, king };
+    pub const Kind = enum(u5) { none, pawn, rook, knight, bishop, queen, king };
 
-    selected: Selected = .y,
+    status: Status = .none,
     color: Color = .white,
     kind: Kind = .none,
 
-    pub fn init(s: Selected, c: Color, k: Kind) Piece {
-        return .{ .selected = s, .color = c, .kind = k };
+    pub fn init(s: Status, c: Color, k: Kind) Piece {
+        return .{ .status = s, .color = c, .kind = k };
     }
 
     pub fn edit(self: *Piece, c: Color, k: Kind) void {
@@ -19,8 +19,8 @@ pub const Piece = packed struct {
         self.kind = k;
     }
 
-    pub fn select(self: *Piece, s: Selected) void {
-        self.selected = s;
+    pub fn select(self: *Piece, s: Status) void {
+        self.status = s;
     }
 
     pub fn toString(self: Piece) []const u8 {
@@ -50,7 +50,7 @@ pub const Piece = packed struct {
 pub const Board = struct {
     data: [8][8]Piece = undefined,
 
-    const Error = error{SelectionFail};
+    const Error = error{ InvalidInput, InvalidColor };
 
     pub fn init() Board {
         return Board{ .data = .{
@@ -87,8 +87,22 @@ pub const Board = struct {
         self.data = init().data;
     }
 
-    pub fn select(str: [2]u8) Error!void {
-        switch (str[0]) {}
+    pub fn select(self: *Board, pos: *const [2]u8, color: Piece.Color) Error!*const Piece {
+        if (pos[0] < 'a' or pos[0] > 'h')
+            return Error.InvalidInput;
+        if (pos[1] < '1' or pos[1] > '8')
+            return Error.InvalidInput;
+
+        const row: u8 = 7 - (pos[1] - '1');
+        const col: u8 = pos[0] - 'a';
+
+        var piece = &self.data[row][col];
+
+        if (piece.color != color)
+            return Error.InvalidColor;
+
+        piece.select(.selected);
+        return piece;
     }
 
     pub fn printBoard(self: Board, stdout: *std.Io.Writer) !void {
@@ -114,30 +128,32 @@ pub const Board = struct {
         const y: u8 = @intCast((line - 1) / 2);
         try stdout.print("{d} │", .{8 - y});
         for (0..8) |x| {
-            try printPiece(self, stdout, self.data[y][x]);
+            try printPiece(stdout, self.data[y][x]);
             try stdout.print("│", .{});
         }
         try stdout.print("\n", .{});
     }
 
-    fn printPiece(_: Board, stdout: *std.Io.Writer, piece: Piece) !void {
+    fn printPiece(stdout: *std.Io.Writer, piece: Piece) !void {
         // \x1b[31m foreground color to red 37=white 30=black
         // \x1b[0m  reset terminal's defaults
         // example: try stdout.print(" \x1b[31m{s}\x1b[0m ", .{piece.toString()});
-        try stdout.print(" {s} ", .{piece.toString()});
+
+        switch (piece.status) {
+            .none => try stdout.print(" {s} ", .{piece.toString()}),
+            .selected => try stdout.print(" \x1b[31m{s}\x1b[0m ", .{piece.toString()}),
+            .movement => try stdout.print(" \x1b[32m{s}\x1b[0m ", .{piece.toString()}),
+        }
     }
 };
 
-const dbglg = std.debug.print;
-
 test "Piece struct size" {
     const size: u8 = @sizeOf(Piece);
-    dbglg(" is {d} bytes! ", .{size});
     try std.testing.expect(size <= 1);
 }
 
 test "Piece toChar" {
-    var p = Piece.init(.n, .black, .queen);
+    var p = Piece.init(.none, .black, .queen);
     try std.testing.expectEqualStrings(p.toString(), "♕");
     p.edit(.white, .knight);
     try std.testing.expectEqualStrings(p.toString(), "♞");

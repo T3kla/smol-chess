@@ -1,9 +1,7 @@
 const std = @import("std");
 const chess = @import("chess.zig");
+const Color = chess.Piece.Color;
 const print = std.debug.print;
-
-pub const W = 80;
-pub const H = 60;
 
 pub fn main(init: std.process.Init) !void {
     var obuff: [1024]u8 = undefined;
@@ -16,16 +14,24 @@ pub fn main(init: std.process.Init) !void {
 
     var board = chess.Board.init();
 
-    var turn: u32 = 0;
-    while (true) : (turn += 0) {
+    var t: u64 = 0;
+
+    while (true) {
+        const color = if (t % 2 == 0) Color.white else Color.black;
+
         try stdout.print("\x1B[2J\x1B[H", .{});
-
         try board.printBoard(stdout);
-        try stdout.print("         {s} turn: ", .{if (turn % 2 == 0) "White" else "Black"});
-
+        try stdout.print("         {s} turn: ", .{if (color == Color.white) "White" else "Black"});
         try stdout.flush();
 
         const bare_line = try stdin.takeDelimiter('\n') orelse continue;
-        _ = std.mem.trim(u8, bare_line, "\r");
+        const line = std.mem.trim(u8, bare_line, "\r");
+
+        _ = board.select(line[0..2], color) catch |err| switch (err) {
+            error.InvalidInput => continue,
+            error.InvalidColor => continue,
+        };
+
+        t += 1;
     }
 }
