@@ -50,7 +50,13 @@ pub const Piece = packed struct {
 pub const Board = struct {
     data: [8][8]Piece = undefined,
 
-    const Error = error{ InvalidInput, InvalidColor, CantMove, Ilegal };
+    const Error = error{
+        InvalidInput,
+        InvalidColor,
+        CantMove,
+        Ilegal,
+        SelectedNone,
+    };
 
     pub fn init() Board {
         return Board{ .data = .{
@@ -106,7 +112,7 @@ pub const Board = struct {
         if (piece.color != color) return Error.InvalidColor;
 
         switch (piece.kind) {
-            .none => {},
+            .none => return Error.SelectedNone,
             .pawn => {
                 possibilityPawn(self, row, col, if (color == Color.white) -1 else 1);
             },
