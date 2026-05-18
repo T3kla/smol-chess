@@ -1,6 +1,6 @@
 const std = @import("std");
 const chess = @import("chess.zig");
-const Color = chess.Piece.Color;
+const Color = chess.Color;
 const print = std.debug.print;
 
 pub fn main(init: std.process.Init) !void {
@@ -27,9 +27,10 @@ pub fn main(init: std.process.Init) !void {
         const bare_line = try stdin.takeDelimiter('\n') orelse continue;
         const line = std.mem.trim(u8, bare_line, "\r");
 
-        _ = board.select(line[0..2], color) catch |err| switch (err) {
+        board.select(line[0..2], color) catch |err| switch (err) {
             error.InvalidInput => continue,
             error.InvalidColor => continue,
+            else => continue,
         };
 
         t += 1;

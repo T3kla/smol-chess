@@ -1,11 +1,11 @@
 const std = @import("std");
 const main = @import("main.zig");
 
-pub const Piece = packed struct {
-    pub const Status = enum(u2) { none, selected, movement };
-    pub const Color = enum(u1) { white, black };
-    pub const Kind = enum(u5) { none, pawn, rook, knight, bishop, queen, king };
+pub const Status = enum(u2) { none, selected, possibility };
+pub const Color = enum(u1) { white, black };
+pub const Kind = enum(u5) { none, pawn, rook, knight, bishop, queen, king };
 
+pub const Piece = packed struct {
     status: Status = .none,
     color: Color = .white,
     kind: Kind = .none,
@@ -50,7 +50,7 @@ pub const Piece = packed struct {
 pub const Board = struct {
     data: [8][8]Piece = undefined,
 
-    const Error = error{ InvalidInput, InvalidColor };
+    const Error = error{ InvalidInput, InvalidColor, CantMove, Ilegal };
 
     pub fn init() Board {
         return Board{ .data = .{
@@ -83,26 +83,59 @@ pub const Board = struct {
         } };
     }
 
+    pub fn get(self: *Board, r: i8, c: i8) ?*Piece {
+        if (bounds(r, c))
+            return &self.data[@intCast(r)][@intCast(c)]
+        else
+            return null;
+    }
+
     pub fn reset(self: Board) void {
         self.data = init().data;
     }
 
-    pub fn select(self: *Board, pos: *const [2]u8, color: Piece.Color) Error!*const Piece {
-        if (pos[0] < 'a' or pos[0] > 'h')
-            return Error.InvalidInput;
-        if (pos[1] < '1' or pos[1] > '8')
-            return Error.InvalidInput;
+    pub fn select(self: *Board, pos: *const [2]u8, color: Color) Error!void {
+        if (pos[0] < 'a' or pos[0] > 'h') return Error.InvalidInput;
+        if (pos[1] < '1' or pos[1] > '8') return Error.InvalidInput;
 
-        const row: u8 = 7 - (pos[1] - '1');
-        const col: u8 = pos[0] - 'a';
+        const row: i8 = @intCast(7 - (pos[1] - '1'));
+        const col: i8 = @intCast(pos[0] - 'a');
 
-        var piece = &self.data[row][col];
+        var piece = self.get(row, col) orelse return Error.InvalidInput;
 
-        if (piece.color != color)
-            return Error.InvalidColor;
+        if (piece.color != color) return Error.InvalidColor;
+
+        switch (piece.kind) {
+            .none => {},
+            .pawn => {
+                possibilityPawn(self, row, col, if (color == Color.white) -1 else 1);
+            },
+            .rook => {},
+            .knight => {},
+            .bishop => {},
+            .queen => {},
+            .king => {},
+        }
+
+        // only if it can move or eat it should be selected, else send an error
+        // will have to check every hecking
 
         piece.select(.selected);
-        return piece;
+    }
+
+    fn possibilityPawn(self: *Board, row: i8, col: i8, sense: i8) void {
+        const r = row + sense;
+
+        if (self.get(r, col)) |piece| if (piece.kind == Kind.none)
+            piece.select(.possibility);
+        if (self.get(r, col + 1)) |piece| if (piece.kind != Kind.none)
+            piece.select(.possibility);
+        if (self.get(r, col - 1)) |piece| if (piece.kind != Kind.none)
+            piece.select(.possibility);
+    }
+
+    fn bounds(r: i8, c: i8) bool {
+        return r >= 0 and r <= 7 and c >= 0 and c <= 7;
     }
 
     pub fn printBoard(self: Board, stdout: *std.Io.Writer) !void {
@@ -111,15 +144,12 @@ pub const Board = struct {
         const board_bot = "  ╰───┴───┴───┴───┴───┴───┴───┴───╯\n";
         const board_ltr = "    a   b   c   d   e   f   g   h  \n";
 
-        for (0..16) |i| {
-            switch (i) {
-                0 => try stdout.print("{s}", .{board_top}),
-                1, 3, 5, 7, 9, 11, 13, 15 => try printLine(self, stdout, @intCast(i)),
-                2, 4, 6, 8, 10, 12, 14 => try stdout.print("{s}", .{board_mid}),
-                else => unreachable,
-            }
+        try stdout.print("{s}", .{board_top});
+        inline for (0..7) |i| {
+            try printLine(self, stdout, @intCast(2 * i + 1));
+            try stdout.print("{s}", .{board_mid});
         }
-
+        try printLine(self, stdout, @intCast(15));
         try stdout.print("{s}", .{board_bot});
         try stdout.print("{s}", .{board_ltr});
     }
@@ -142,7 +172,12 @@ pub const Board = struct {
         switch (piece.status) {
             .none => try stdout.print(" {s} ", .{piece.toString()}),
             .selected => try stdout.print(" \x1b[31m{s}\x1b[0m ", .{piece.toString()}),
-            .movement => try stdout.print(" \x1b[32m{s}\x1b[0m ", .{piece.toString()}),
+            .possibility => {
+                if (piece.kind == Kind.none)
+                    try stdout.print(" \x1b[32m✖\x1b[0m ", .{})
+                else
+                    try stdout.print(" \x1b[32m{s}\x1b[0m ", .{piece.toString()});
+            },
         }
     }
 };
