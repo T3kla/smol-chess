@@ -52,7 +52,7 @@ pub const Board = struct {
 
     const Error = error{
         InvalidInput,
-        InvalidColor,
+        NotYourTurn,
         CantMove,
         Ilegal,
         SelectedNone,
@@ -100,44 +100,49 @@ pub const Board = struct {
         self.data = init().data;
     }
 
-    pub fn select(self: *Board, pos: *const [2]u8, color: Color) Error!void {
-        if (pos[0] < 'a' or pos[0] > 'h') return Error.InvalidInput;
-        if (pos[1] < '1' or pos[1] > '8') return Error.InvalidInput;
-
-        const row: i8 = @intCast(7 - (pos[1] - '1'));
-        const col: i8 = @intCast(pos[0] - 'a');
-
+    pub fn select(self: *Board, turn: Color, row: i8, col: i8) Error!void {
         var piece = self.get(row, col) orelse return Error.InvalidInput;
 
-        if (piece.color != color) return Error.InvalidColor;
+        if (piece.color != turn) return Error.NotYourTurn;
 
         switch (piece.kind) {
             .none => return Error.SelectedNone,
-            .pawn => {
-                possibilityPawn(self, row, col, if (color == Color.white) -1 else 1);
-            },
+            .pawn => pawn(self, turn, row, col),
             .rook => {},
-            .knight => {},
+            .knight => knight(self, turn, row, col),
             .bishop => {},
             .queen => {},
             .king => {},
         }
 
         // only if it can move or eat it should be selected, else send an error
-        // will have to check every hecking
+        // will have to check every piece
 
         piece.select(.selected);
     }
 
-    fn possibilityPawn(self: *Board, row: i8, col: i8, sense: i8) void {
+    fn knight(self: *Board, clr: Color, row: i8, col: i8) void {
+        const moves = [_][2]i8{
+            .{ 2, 1 }, .{ 2, -1 }, .{ -2, 1 }, .{ -2, -1 },
+            .{ 1, 2 }, .{ 1, -2 }, .{ -1, 2 }, .{ -1, -2 },
+        };
+
+        for (moves) |i|
+            if (self.get(row + i[0], col + i[1])) |p|
+                if (p.kind == .none or p.kind != .none and p.color != clr)
+                    p.select(.possibility);
+    }
+
+    fn pawn(self: *Board, clr: Color, row: i8, col: i8) void {
+        const sense: i8 = if (clr == Color.white) -1 else 1;
         const r = row + sense;
 
-        if (self.get(r, col)) |piece| if (piece.kind == Kind.none)
-            piece.select(.possibility);
-        if (self.get(r, col + 1)) |piece| if (piece.kind != Kind.none)
-            piece.select(.possibility);
-        if (self.get(r, col - 1)) |piece| if (piece.kind != Kind.none)
-            piece.select(.possibility);
+        if (self.get(r, col)) |p| if (p.kind == Kind.none)
+            p.select(.possibility);
+        if (self.get(r, col + 1)) |p| if (p.kind != Kind.none and p.color != clr)
+            p.select(.possibility);
+        if (self.get(r, col - 1)) |p| if (p.kind != Kind.none and p.color != clr)
+            p.select(.possibility);
     }
 
     fn bounds(r: i8, c: i8) bool {
