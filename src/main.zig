@@ -1,7 +1,8 @@
 const std = @import("std");
-const chess = @import("chess.zig");
-const Color = chess.Color;
-const print = std.debug.print;
+const Board = @import("board.zig");
+const Piece = @import("piece.zig");
+
+const log = std.debug.log;
 
 const ROWS = 21;
 const COLS = 36;
@@ -15,15 +16,15 @@ pub fn main(init: std.process.Init) !void {
     var reader = std.Io.File.stdin().reader(init.io, &ibuff);
     const stdin = &reader.interface;
 
-    var board = chess.Board.init();
+    var board = Board.init();
 
     var moves: u8 = 0;
 
     while (true) {
-        const turn: Color = if (moves % 2 == 0) .white else .black;
+        const turn: Piece.Color = if (moves % 2 == 0) .white else .black;
 
         try stdout.print("\n{s:^36}\n", .{"Smol-Chess"});
-        try board.printBoard(stdout);
+        try board.print(stdout);
 
         while (true) {
             try stdout.print("{s}s select -> ", .{if (moves % 2 == 0) "White" else "Black"});
