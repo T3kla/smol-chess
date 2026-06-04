@@ -1,17 +1,13 @@
 const std = @import("std");
+const log = std.debug.print;
+
 const Board = @import("board.zig");
 const Piece = @import("piece.zig");
-
-const log = std.debug.log;
 
 const ROWS = 21;
 const COLS = 36;
 
 pub fn main(init: std.process.Init) !void {
-    var obuff: [1024]u8 = undefined;
-    var writer = std.Io.File.stdout().writer(init.io, &obuff);
-    const stdout = &writer.interface;
-
     var ibuff: [128]u8 = undefined;
     var reader = std.Io.File.stdin().reader(init.io, &ibuff);
     const stdin = &reader.interface;
@@ -23,35 +19,34 @@ pub fn main(init: std.process.Init) !void {
     while (true) {
         const turn: Piece.Color = if (moves % 2 == 0) .white else .black;
 
-        try stdout.print("\n{s:^36}\n", .{"Smol-Chess"});
-        try board.print(stdout);
+        log("\n{s:^36}\n", .{"Smol-Chess"});
+        try board.print();
 
         while (true) {
-            try stdout.print("{s}s select -> ", .{if (moves % 2 == 0) "White" else "Black"});
-            try stdout.flush();
+            log("{s}s select -> ", .{if (moves % 2 == 0) "White" else "Black"});
 
             const bare_line = try stdin.takeDelimiter('\n') orelse continue;
             const line = std.mem.trim(u8, bare_line, "\r");
 
             if (line.len != 2) {
-                try clearRows(stdout, 1);
+                try clearRows(1);
                 continue;
             }
 
             const pos = inputToPos(line[0..2]) catch {
-                try clearRows(stdout, 1);
+                try clearRows(1);
                 continue;
             };
 
             board.select(turn, pos.r, pos.c) catch {
-                try clearRows(stdout, 1);
+                try clearRows(1);
                 continue;
             };
 
             break;
         }
 
-        try clearRows(stdout, ROWS);
+        try clearRows(ROWS);
 
         moves += 1;
     }
@@ -62,12 +57,10 @@ pub fn main(init: std.process.Init) !void {
 // \x1b[nG   => cursor to col n
 // \x1B[K    => wipe row
 
-fn clearRows(stdout: *std.Io.Writer, n: usize) !void {
-    try stdout.print("\x1B[K", .{});
+fn clearRows(n: usize) !void {
+    log("\x1B[K", .{});
     for (0..n) |_|
-        try stdout.print("\x1B[A\x1B[K", .{});
-
-    // try stdout.flush();
+        log("\x1B[A\x1B[K", .{});
 }
 
 fn inputToPos(pos: *const [2]u8) !struct { r: i8, c: i8 } {

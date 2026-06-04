@@ -1,5 +1,7 @@
 const Self = @This();
 
+const log = @import("std").debug.print;
+
 const Writer = @import("std").Io.Writer;
 const Piece = @import("piece.zig");
 
@@ -54,7 +56,7 @@ pub fn init() Self {
         .{Piece{ .kind = .none }} ** 8,
         .{Piece{ .kind = .none }} ** 8,
         .{Piece{ .kind = .none }} ** 8,
-        .{Piece{ .color = .white, .kind = .rook }} ** 8,
+        .{Piece{ .color = .white, .kind = .pawn }} ** 8,
         .{
             Piece{ .color = .white, .kind = .rook },
             Piece{ .color = .white, .kind = .knight },
@@ -166,45 +168,45 @@ fn bounds(r: i8, c: i8) bool {
     return r >= 0 and r <= 7 and c >= 0 and c <= 7;
 }
 
-pub fn print(self: Self, stdout: *Writer) !void {
+pub fn print(self: Self) !void {
     const board_top = "  ╭───┬───┬───┬───┬───┬───┬───┬───╮\n";
     const board_mid = "  ├───┼───┼───┼───┼───┼───┼───┼───┤\n";
     const board_bot = "  ╰───┴───┴───┴───┴───┴───┴───┴───╯\n";
     const board_ltr = "    a   b   c   d   e   f   g   h  \n";
 
-    try stdout.print("{s}", .{board_top});
+    log("{s}", .{board_top});
     inline for (0..7) |i| {
-        try printLine(self, stdout, @intCast(2 * i + 1));
-        try stdout.print("{s}", .{board_mid});
+        try printLine(self, @intCast(2 * i + 1));
+        log("{s}", .{board_mid});
     }
-    try printLine(self, stdout, @intCast(15));
-    try stdout.print("{s}", .{board_bot});
-    try stdout.print("{s}", .{board_ltr});
+    try printLine(self, @intCast(15));
+    log("{s}", .{board_bot});
+    log("{s}", .{board_ltr});
 }
 
-fn printLine(self: Self, stdout: *Writer, line: u8) !void {
+fn printLine(self: Self, line: u8) !void {
     const y: u8 = @intCast((line - 1) / 2);
-    try stdout.print("{d} │", .{8 - y});
+    log("{d} │", .{8 - y});
     for (0..8) |x| {
-        try printPiece(stdout, self.data[y][x]);
-        try stdout.print("│", .{});
+        try printPiece(self.data[y][x]);
+        log("│", .{});
     }
-    try stdout.print("\n", .{});
+    log("\n", .{});
 }
 
-fn printPiece(stdout: *Writer, piece: Piece) !void {
+fn printPiece(piece: Piece) !void {
     // \x1b[31m foreground color to red 37=white 30=black
     // \x1b[0m  reset terminal's defaults
     // example: try stdout.print(" \x1b[31m{s}\x1b[0m ", .{piece.toString()});
 
     switch (piece.status) {
-        .none => try stdout.print(" {s} ", .{piece.toString()}),
-        .selected => try stdout.print(" \x1b[31m{s}\x1b[0m ", .{piece.toString()}),
+        .none => log(" {s} ", .{piece.toString()}),
+        .selected => log(" \x1b[31m{s}\x1b[0m ", .{piece.toString()}),
         .possibility => {
             if (piece.kind == .none)
-                try stdout.print(" \x1b[32m✖\x1b[0m ", .{})
+                log(" \x1b[32m·\x1b[0m ", .{})
             else
-                try stdout.print(" \x1b[32m{s}\x1b[0m ", .{piece.toString()});
+                log(" \x1b[32m{s}\x1b[0m ", .{piece.toString()});
         },
     }
 }
